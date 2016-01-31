@@ -1,5 +1,6 @@
 \documentclass[twocolumn,10pt]{scrreprt}
-\usepackage[a3paper, twocolumn, landscape]{geometry}
+\usepackage[a3paper, twocolumn, landscape, top = 20mm, left = 2cm, right = 2cm]{geometry}
+\addtolength{\columnsep}{15pt}
 \usepackage{graphicx}
 %\setmainfont{Arial}
 
@@ -36,6 +37,15 @@ library(tidyr)
 library(dplyr)
 library(magrittr)
 @
+
+<<helper-functions>>=
+.simpleCap <- function(x) {
+    s <- strsplit(x, " ")[[1]]
+    paste(toupper(substring(s, 1, 1)), substring(s, 2),
+          sep = "", collapse = " ")
+}
+@
+
 \eject
 \phantom{.}
 \newpage
@@ -421,12 +431,15 @@ Bachelor degree	66.85055608	18.26301611	5.480946866	2.121800946	7.283680001
   mutate(Degree = factor(Degree, 
                          levels = c("Bachelor degree", 
                                     "dummy", 
-                                    "Diploma and advanced diploma"))) %>%
+                                    "Diploma and advanced diploma"),
+                         labels = c("Bachelor degree", 
+                                    "dummy", 
+                                    "Diploma and\nadvanced diploma"))) %>%
   grplot(aes(x = Degree,
              y = value, fill = Status)) + 
   geom_bar(stat = "identity", position = "fill", width = 0.5) + 
   scale_fill_manual(values = c(gpal(6)[1:4], "black")) + 
-  scale_x_discrete(expand = c(0.05,0.05)) + 
+  scale_x_discrete(expand = c(0.10,0.075)) + 
   # get rid of the x-axis title (and the space allocated thereto)
   theme(axis.title = element_blank()) + 
   # make data flush with plot background
@@ -436,11 +449,17 @@ Bachelor degree	66.85055608	18.26301611	5.480946866	2.121800946	7.283680001
   annotate("text", 
            x = 1.5,
            # Probably best to manually position text here!
-           y = c(0.4, 0.75, 0.85, 0.9, 0.95), 
+           y = c(0.4, 0.735, 0.8465, 0.92, 0.97), 
            color = c(gpal(6)[1:4], "black"),
            fontface = "bold",
            size = 23/(14/5),
-           label = c("Full-time", "Part-time", "Away from work", "Unemployed", "Not in LF"))
+           # Note use of \n to signify a new line
+           label = c("Employed\nFull-time", 
+                     "Employed\nPart-time", 
+                     "Employed\naway from work", 
+                     "Unemployed", 
+                     "Not in LF"),
+           lineheight = 0.8)
   
 @
 \phantom{.}
@@ -448,4 +467,83 @@ Bachelor degree	66.85055608	18.26301611	5.480946866	2.121800946	7.283680001
 \eject
 \includegraphics[width=\columnwidth]{atlas/stack-fill-bar-manual-colors-1}
 \newpage
+\section{Labels so to appear as outside the chart (clip $x$-axis)}
+
+<<stacked-bar-chart2, warning=FALSE>>=
+read.table(text="Column1	NSW	VIC	QLD	SA	WA	Other
+2007	779	828	475	1,037	262	99
+2008	2,890	2,036	3,087	3,456	2,068	527
+2009	14,008	8,429	18,283	8,569	11,157	2470
+2010	69,988	35,676	48,697	16,705	22,293	4849
+2011	80,272	60,214	95,303	63,553	51,667	9736
+2012	53,961	66,204	130,252	41,851	42,653	8399
+2013	33,998	33,332	71,197	29,187	21,600	11093
+2014	36,377	39,305	56,952	14,932	23,249	6353
+", header = TRUE) %>%
+  tidyr::gather(State, value, -Column1) %>% 
+  mutate(Year = Column1,
+         State = factor(State, 
+                        labels = c("NSW", "Vic.", "Qld", "SA", "WA", "Other"))) %>%
+  mutate(value = as.numeric(gsub(",", "", value))) %>% 
+  # text
+  mutate(text.x = max(as.numeric(factor(Year))) + 0.65,
+         text.label = ifelse(Year == max(Year), as.character(State), NA_character_)) %>%
+  group_by(Year) %>%
+  mutate(text.y = value/2 + lag(cumsum(value), default = 0)) %>%
+  {
+    grplot(.) + 
+      geom_bar(aes(x = factor(Year), fill = State, y = value),
+               stat = "identity", position = "stack", width = 0.75) + 
+      scale_y_continuous("Value (000's)", expand = c(0,0),
+                         limits = c(0, 400e3),
+                         labels = function(x)comma(x/1e3)) + 
+      geom_text(aes(x = text.x, y = text.y, label = text.label, color = State),
+                hjust = 0,
+                # reduced size (from 23)
+                size = 20/(14/5),
+                fontface = "bold") + 
+      annotate("blank", x = max(as.numeric(factor(.$Year))) + 1.5, y = mean(.$value)) + 
+      theme(axis.title.x = element_blank(), 
+            axis.title.y = element_text(angle = 90, 
+                                        # set margin thus to prevent collision with
+                                        # axis ticks
+                                        margin = margin(1,10,1,1)),
+            # The next steps make the axis line end at the data, 
+            # before the labels
+            axis.line.x = element_blank()) + 
+      annotate("segment", x = -Inf, xend = as.numeric(factor(.$Year)) + 0.5, 
+               y = 0, yend = 0,
+               color = "black")
+  }
+@
+\vfill
+\phantom{.}
+\eject
+\includegraphics[width=\columnwidth]{atlas/stacked-bar-chart2-1}
+\newpage
+\subsection{}
+<<alternative-dodge-chart>>=
+read.table(text="Column1	1986	1991	1996	2001	2006	2011
+15-19	2600	7179	3464	3263	1910	1306
+20-24	30232	24438	24515	25128	24471	22930
+25-34	34207	31548	33085	36905	38943	41806
+35-44	34466	33185	33538	36406	38789	43356
+45-54	30664	30075	32387	36166	39013	42489
+55-64	16680	17073	15973	20916	25884	30437
+65-74	13378	13057	14190	15625	15712	18662
+75-84	0	13132	14324	16103	15505	17565
+85+	0	0	0	0	15017	17894
+", header = TRUE, check.names = FALSE) %>%
+  tidyr::gather(Year, value, -Column1) %>%
+  grplot(aes(x = Column1, y = value, fill = Year)) + 
+  geom_bar(stat = "identity", position = "dodge", width = 0.9) +
+  theme(legend.position = c(0.9, 0.8),
+        # x-axis clear by context
+        axis.title.x = element_blank()) + 
+  scale_y_continuous(expand = c(0,0), limits = c(0, 50e3), label = comma)
+@
+\vfill
+\phantom{.}
+\eject
+\includegraphics[width=\columnwidth]{atlas/alternative-dodge-chart-1}
 \end{document}
