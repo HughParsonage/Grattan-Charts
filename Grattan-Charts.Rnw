@@ -1417,16 +1417,38 @@ Zimbabwe	908.7823241	58.04597561	13724317	SUB-SAHARAN AFRICA                 	3	
 temp.data <- 
   fread("./Supp-Data/bubble-chart.csv") 
 
+temp.data <- 
+  read_excel("./Supp-Data/bubble-chart.xlsx")
+
 for (j in seq_along(names(temp.data)))
-  set(temp.data, j=j, value = ifelse(temp.data[[j]] == -99, NA_real_, temp.data[[j]]))
+  set(temp.data, j = j, value = ifelse(temp.data[[j]] == -99, NA_real_, temp.data[[j]]))
   
   
 temp.data %>%
-  grplot(aes(x = GDP.capita...US., 
-             y = Life.expectancy, 
-             size = Population, 
-             color = factor(Continent))) + 
-  geom_point()
+  select(GDP_per_capita = `GDP/capita ($US)`,
+         Life_expectancy = `Life expectancy`, 
+         Continent, 
+         Population, Country) %>%
+{
+  grplot(., aes(x = GDP_per_capita, 
+                y = Life_expectancy, 
+                size = Population, 
+                color = factor(Continent))) + 
+    geom_point(alpha = 0.75) + 
+    geom_point(data = filter(., Country == "Australia"), color = "red") + 
+    geom_label(data = filter(., Country == "Australia"), 
+              mapping = aes(label = Country), 
+              colour = "red", 
+              hjust = -0.10,
+              fontface = "bold",
+              vjust = 0.5,
+              fill = "white",
+              nudge_y = -1) + 
+    scale_x_log10("log(GDP/capita)", label = grattan_dollar) + 
+    scale_size_area(max_size = 48)
+}
 @
+
+
 
 \end{document}
