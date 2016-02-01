@@ -1,5 +1,5 @@
 \documentclass[twocolumn,10pt]{scrreprt}
-\usepackage[a3paper, twocolumn, landscape, top = 20mm, left = 2cm, right = 2cm]{geometry}
+\usepackage[a3paper, twocolumn, landscape, top = 10mm, bottom = 10mm, left = 2cm, right = 2cm]{geometry}
 \addtolength{\columnsep}{15pt}
 \usepackage{graphicx}
 %\setmainfont{Arial}
@@ -546,4 +546,157 @@ read.table(text="Column1	1986	1991	1996	2001	2006	2011
 \phantom{.}
 \eject
 \includegraphics[width=\columnwidth]{atlas/alternative-dodge-chart-1}
+\newpage
+\section{Rowwise charts (flipped bar charts)}
+<<flipped-bar-chart>>=
+read.table(text="Intervention 	Effect size
+Formative evaluation	0.9
+Feedback	0.73
+Formative assessment	0.55
+Prior achievement	0.67
+Socioeconomic status	0.57
+Pre-term birth weight	0.54
+Decreasing disruptive behavior	0.34
+Class size	0.21
+", sep = "\t", header=TRUE) %>%
+  mutate(is_Proposed_intervention = Intervention %in% c("Formative evaluation",
+                                                        "Feedback", 
+                                                        "Formative assessment"),
+         
+         Intervention = factor(Intervention, 
+                               levels = .$Intervention,
+                               # if the label is too long, replace the first space
+                               # with a newline
+                               labels = ifelse(nchar(as.character(Intervention)) > 25, 
+                                               sub("\\s", "\n", as.character(Intervention)),
+                                               as.character(Intervention)))) %>%
+  # The following says "plot in reverse of current order"
+  mutate(Intervention = factor(Intervention, levels = rev(.$Intervention))) %>%
+  
+  # note `Effect size`  is now `Effect.size`
+  grplot(aes(x = Intervention, y = Effect.size)) + 
+  geom_bar(stat = "identity", width = 0.9, aes(fill = is_Proposed_intervention)) +
+  # dark palette
+  scale_fill_manual(values = rev(gpal(2, dark = TRUE))) + 
+  scale_y_continuous("Effect size",
+                     expand = c(0,0), 
+                     limits = c(0,1.5), 
+                     breaks = seq(0, 1, by = 0.2)) + 
+  coord_flip() + 
+  # grid lines go the wrong way!
+  theme(panel.grid.major.y = element_blank(),
+        panel.grid.major.x = element_line()) + 
+  annotate("text", x = c(7, 3), y = 1.5, 
+           label = c("Proposed\ninterventions",
+                     "Other\nfactors"),
+           color = gpal(2,T),
+           hjust = 1, 
+           size = 23/(14/5),
+           fontface = "bold",
+           lineheight = 0.8) + 
+  geom_hline(yintercept = 0.4, size = 2) + 
+  # arrow
+  annotate("segment", y = 0.8, yend = 0.43, x = 1, xend = 1,
+           size = 1.1
+           # basic arrow (bit curvy for my liking)
+#            arrow = arrow(length = unit(0.5, "lines"),  # size of arrowhead
+#                          type = "closed")
+           ) + 
+  annotate("text", x = 1, y = 0.95, size = 20/(14/5),
+           lineheight = 0.8,
+           label = "Benchmark\neffect size") + 
+  # arrowhead
+  annotate("polygon", x = c(1, 0.9, 1.1), y = c(0.41, 0.44, 0.44), fill = "black")
+@
+\vfill
+\phantom{.}
+\eject
+\includegraphics[width=\columnwidth]{atlas/flipped-bar-chart-1}
+%
+\newpage
+\section{Bar chart signed colours}
+<<bar-chart-signed-color>>=
+read.table(text="Sector	Value Added
+Gas	18.683
+Construction and Trade	3.73
+Services	0.483
+Electricity and Water	-0.302
+Agriculture	-0.43
+Transport	-0.652
+Mining	-2.756
+Manufacturing	-3.247
+", header = TRUE, sep = "\t") %>%
+  arrange(desc(Value.Added)) %>%  # redundant here
+  mutate(Sector = factor(Sector, levels = rev(.$Sector))) %>%
+  grplot(aes(x = Sector, y = Value.Added)) + 
+  geom_bar(stat = "identity", width = 0.9, aes(fill = Value.Added > 0)) + 
+  scale_fill_manual(values = gpal(2, T)) + 
+  scale_y_continuous("Value added (billions)", 
+                     label = grattan_dollar) + 
+  coord_flip() + 
+  annotate("text", 
+           x = c(3, 6), 
+           y = 15,
+           label = c("Negative", "Positive"),
+           size = 23/(14/5),
+           fontface = "bold",
+           color = gpal(2, T)) + 
+  theme(panel.grid.major.x = element_line(),
+        panel.grid.major.y = element_blank(),
+        #
+        axis.title.x = element_text(margin = margin(5,1,1,1))) + 
+  geom_hline(yintercept = 0, color = "black")
+@
+\vfill
+\phantom{.}
+\eject
+\includegraphics[width=\columnwidth]{atlas/bar-chart-signed-color-1}
+\newpage
+\section{Bar charts facetted}
+<<bar-chart-with-facets>>=
+read.table(text = "Reliability_level	Solar PV	Battery	Grid
+95 per cent	8,200	26,000	0
+99 per cent	11,200	41,000	0
+99.9 per cent	16,200	56,000	0
+Grid-connected	0	0	12,910
+", sep = "\t", header = TRUE) %>%
+  tidyr::gather(Electricity_source, value, -Reliability_level) %>%
+  mutate(value = as.numeric(gsub(",", "", value)),
+         is_grid_connected = factor(ifelse(grepl("Grid.connected", Reliability_level),
+                                           "Grid-connected",
+                                           "Off-grid reliability level"),
+                                    levels = c("Off-grid reliability level",
+                                               "Grid-connected"))) %>%
+  group_by(Reliability_level) %>%
+  mutate(text.middle.y = value/2 + cumsum(lag(value, default = 0)),
+         text.top.y = ifelse(Electricity_source == first(Electricity_source), 
+                             max(cumsum(value)),
+                             NA_real_)) %>%
+
+
+  grplot(aes(x = Reliability_level, y = value, fill = Electricity_source)) + 
+  geom_bar(stat = "identity", position = "stack", width = 0.9) + 
+  scale_fill_manual(values = rev(gpal(3))) + 
+  geom_text(aes(y = text.middle.y, 
+                label = ifelse(value > 0,
+                               grattan_dollar(value),
+                               NA_real_)),
+            size = 23/(14/5)) + 
+  geom_text(aes(y = text.top.y, label = grattan_dollar(text.top.y)),
+            vjust = -0.25,
+            size = 23/(14/5)) + 
+  # with all the bars marked, no need for y-axis
+  theme(axis.text.y = element_blank(), 
+        axis.line.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        axis.title.x = element_blank(),
+        panel.grid.major = element_blank(),
+        axis.text.x = element_text(margin = margin(1, 1, 5.5, 1))) + 
+  scale_y_continuous(expand = c(0,0), limits = c(0, 80e3)) + 
+  facet_grid(~is_grid_connected, scales = "free_x", space = "free", switch = "x") + 
+  theme(strip.background = element_rect(fill = grey(0.5)))
+@
+\vfill
+\phantom{.}
+\includegraphics[width=\columnwidth]{atlas/bar-chart-with-facets-1}
 \end{document}
