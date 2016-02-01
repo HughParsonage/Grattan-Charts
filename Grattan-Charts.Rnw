@@ -30,12 +30,15 @@ knitr::opts_chunk$set(fig.show = "hide",
 @
 
 <<packages>>=
+library(directlabels)
 library(ggplot2)
 library(scales) 
 library(grattan)
 library(tidyr)
 library(dplyr)
+library(readr)
 library(magrittr)
+library(lubridate)
 @
 
 <<helper-functions>>=
@@ -699,4 +702,305 @@ Grid-connected	0	0	12,910
 \vfill
 \phantom{.}
 \includegraphics[width=\columnwidth]{atlas/bar-chart-with-facets-1}
+\chapter{Line charts}
+\section{Basic time series}
+<<line-chart-1-data, include=FALSE>>=
+read.table(text="Month	USA	Europe	Japan
+Jul-09	3.877323919	7.628384915	8.634828502
+Aug-09	3.552166006	7.808694293	8.756570479
+Sep-09	3.187013696	7.672679515	9.060864167
+Oct-09	4.159281255	7.857063417	9.407799618
+Nov-09	3.808467386	8.059211067	9.421331247
+Dec-09	5.665411259	8.458201779	10.30612352
+Jan-10	6.173123102	9.3549886	10.6519302
+Feb-10	5.678579967	9.365501004	11.19603075
+Mar-10	4.438555723	9.234065467	10.77479979
+Apr-10	4.079497812	7.658160101	11.18172844
+May-10	4.636149137	8.109914395	12.7059044
+Jun-10	5.328040993	8.600783617	11.64550547
+Jul-10	4.876240179	8.473819012	11.9307999
+Aug-10	4.571884362	8.973849677	12.0005327
+Sep-10	3.824692421	8.112004213	10.80620851
+Oct-10	3.329501691	8.043587067	10.79917057
+Nov-10	3.670230163	8.458589335	10.67416861
+Dec-10	3.948533706	8.144774344	10.01788606
+Jan-11	4.288228064	9.17120036	10.92718461
+Feb-11	3.797384551	8.722550099	11.20139446
+Mar-11	3.639601103	8.587380035	11.45594989
+Apr-11	3.686164103	9.001664178	11.28683568
+May-11	3.810768298	9.109150039	12.03645942
+Jun-11	4.011821891	9.0484266	12.80537566
+Jul-11	3.815580155	9.501988604	14.02386307
+Aug-11	3.591238525	9.576281718	14.66118986
+Sep-11	3.777597116	10.50596691	15.75410891
+Oct-11	3.215533237	10.29186927	14.8520145
+Nov-11	3.064444604	10.69854984	15.85880444
+Dec-11	2.950774434	10.75217104	15.36823754
+Jan-12	2.385923784	10.19473349	14.8780783
+Feb-12	2.205898465	9.737055782	14.03642124
+Mar-12	1.972201125	10.89850306	14.87732163
+Apr-12	1.763793054	10.34700605	15.26681715
+May-12	2.373216943	11.33348864	16.66918605
+Jun-12	2.281705678	10.67807032	15.98457872
+Jul-12	2.650240038	10.01431731	16.2946349
+Aug-12	2.609567046	10.27902603	16.31036867
+Sep-12	2.571813542	10.0283984	15.23266652
+Oct-12	3.027427303	10.56779652	13.96263271
+Nov-12	3.21233946	10.74108983	13.6193024
+Dec-12	3.045834613	10.75322356	14.05489187
+Jan-13	3.041703127	10.8157728	14.47873882
+Feb-13	3.062936972	10.84886192	15.18103278
+Mar-13	3.470045678	10.78257649	14.77948774
+Apr-13	3.805883791	11.76550097	14.79822327
+May-13	3.971402046	12.0631055	15.92055095
+Jun-13	3.906794762	12.17171813	16.96075823
+Jul-13	3.792851597	12.15691153	16.94631547
+Aug-13	3.626069166	12.32154287	16.51340797
+Sep-13	3.675211634	11.44561258	15.22012126
+Oct-13	3.666890571	11.34707177	15.2691467
+Nov-13	3.787824035	11.902416	16.05054347
+Dec-13	4.508977079	12.22490684	17.33714061
+Jan-14	5.080524053	12.526224	18.0165793
+Feb-14	6.323047424	11.96163526	17.74132805
+Mar-14	5.010488064	11.17481707	16.99845796
+Apr-14	4.725641386	10.94243123	17.12240637
+May-14	4.636850728	10.36621971	16.58595154
+Jun-14	4.593871202	9.8227527	15.53918918
+Jul-14	4.073060178	9.416012333	14.85502454
+", header = TRUE) %>%
+readr::write_csv(path = "./Supp-Data/line-chart-1.csv")
+@
+
+<<line-chart-1>>=
+read_csv("./Supp-Data/line-chart-1.csv") %>%
+  tidyr::gather(Country, value, -Month) %>%
+  mutate(Date = as.Date(paste0("01-", Month), "%d-%b-%y")) %>%
+  group_by(Country) %>%
+  mutate(text.label = ifelse(value == max(value), as.character(Country), NA_character_)) %>%
+  grplot(aes(x = Date, y = value, color = Country)) + 
+  geom_line() +
+  geom_text(aes(label = text.label), 
+            size = 23/(14/5),
+            fontface = "bold",
+            vjust = -0.35) + 
+  theme(axis.title = element_blank())
+@
+\vfill
+\phantom{.}
+\eject
+\includegraphics[width=\columnwidth]{atlas/line-chart-1-1}
+\newpage
+\section{Line chart with forecast}
+<<line-chart-with-forecast>>=
+read.table(text="Year 	VIC	NSW	QLD	WA
+2003	5.356414724	7.158303299	8.295067397	6.779373035
+2004	5.765232407	7.212470457	6.627270564	5.512428448
+2005	5.247275775	7.813739286	6.501705246	5.357896217
+2006	5.579882397	7.766102172	6.156096264	4.386993275
+2007	5.142464026	7.974499497	6.437996373	4.492579222
+2008	4.967862882	7.937344521	6.986955138	4.299346541
+2009	5.493190785	8.292898991	8.363056636	4.546391753
+2010	6.085006168	7.852222696	8.313826172	4.700406152
+2011	6.509222847	8.126837463	8.654098243	5.040561095
+2012	7.038135416	8.619037843	9.705296782	5.499212089
+2013	8.347365139	9.790432725	11.31027881	5.965909091
+2014	9.049923004	9.750211753	11.8696421	6.187004075
+2015	9.333387206	9.904002678	11.17400215	6.75574023
+2016	9.031231241	9.884136122	11.46456268	7.162695011
+2017	8.916867397	9.77732708	11.38238887	7.53921181
+", header=TRUE) %>%
+  tidyr::gather(State, value, -Year) %>%
+  mutate(State = factor(State, levels = c("QLD", "NSW", "VIC", "WA"),
+                        labels = c("Qld", "NSW", "Vic.", "WA"))) %>%
+  mutate(label.text = ifelse(Year == 2014, as.character(State), NA_character_)) %>%
+  grplot(aes(x = Year, y = value, color = State)) + 
+  geom_line() + 
+  geom_text(aes(label = label.text,
+                # put labels above if QLD/NSW, else below
+                vjust = ifelse(State %in% c("Qld", "NSW"),
+                               -0.5, 
+                               2.0)), 
+            fontface = "bold",
+            size = 23/(14/5)) + 
+  scale_x_continuous(expand = c(0,0)) +
+  annotate("rect", xmin = 2015, xmax = Inf, ymin = -Inf, ymax = Inf, 
+           alpha = 0.1) + 
+  annotate("text", x = 2016, y = 12.5, label = "Forecast",
+           size = 23/(14/5))
+@
+\vfill
+\phantom{.}
+\eject
+\includegraphics[width=\columnwidth]{atlas/line-chart-with-forecast-1}
+\newpage
+\section{Forecast charts}
+<<forecasts-chart>>=
+read.table(text="Year of forecast	2011	2012	2013	2014	2015	2016	Actual
+2009	-2.2						-2.2
+2010	-4.4	-4.3					-4.3
+2011	-2.9	-3.6	-3.4				-3.4
+2012	-0.9	-1.5	-3	-2.9			-2.9
+2013	0.1	0.2	0.1	-1.3	-1.2		-1.2
+2014	0.3	0.2	0.1	-1.1	-3.1	-3.1	-3.1
+2015		0.3	0.3	-0.6	-1.8	-2.6	
+2016			0.4	0	-1	-2.1	
+2017				0.4	-0.6	-1.5	
+2018					-0.2	-0.8	
+2019						-0.4	
+", sep = "\t", header = TRUE, check.names = FALSE) %>% 
+  # the `Year of forecast` refers to the row, not the column:
+  tidyr::gather(Year_of_forecast, value, -`Year of forecast`) %>%
+  rename(Year_date = `Year of forecast`) %>%
+  mutate(Year_of_forecast = factor(Year_of_forecast, levels = c(2011:2016, "Actual"))) %>%
+  group_by(Year_of_forecast) %>%
+  mutate(Year_of_forecast.label = ifelse(Year_date == max(Year_date[!is.na(value)]),
+                                         as.character(Year_of_forecast),
+                                         NA_character_)) %>%
+  {
+    grplot(., aes(x = Year_date, y = value, color = Year_of_forecast)) + 
+      # We want to plot actual over the top of the others:
+      geom_line(data = filter(., Year_of_forecast != "Actual"),
+                linetype = "dashed") +
+      geom_line(data = filter(., Year_of_forecast == "Actual"), color = "black") + 
+      geom_text(data = filter(., Year_of_forecast != "Actual"),
+                aes(label = Year_of_forecast.label), 
+                hjust = 0,
+                vjust = 0,
+                size = 23/(14/5),
+                fontface = "bold") + 
+      geom_text(data = filter(., Year_of_forecast == "Actual"),
+                aes(label = Year_of_forecast.label), 
+                hjust = 0,
+                size = 23/(14/5),
+                color = "black",
+                fontface = "bold") + 
+      scale_x_continuous(limits = c(2008, 2020),
+                         breaks = c(2009, 2014, 2019),
+                         expand = c(0,0)) + 
+      theme(axis.title.x = element_blank()) + 
+      geom_hline(yintercept = 0)
+  }
+@
+\vfill
+\phantom{.}
+\eject
+\includegraphics[width=\columnwidth]{atlas/forecasts-chart-1}
+\newpage
+\section{Index charts}
+<<index-charts>>=
+# generate data
+set.seed(1)
+data_frame(Date = seq(as.Date("2008-12-01"), as.Date("2013-12-01"),
+                      by = "3 months")) %>%
+  mutate(Electricity = rnorm(1, 50) + 3 * 1:n() + rnorm(n(), 5, 3),
+         Gas = rnorm(1, 50) + 1.5 * 1:n() + rnorm(n(), 5), 3) %>%
+  tidyr::gather(Source, value, Electricity:Gas) %>%
+  group_by(Source) %>%
+  mutate(index = 100*value/first(value),
+         index.label = ifelse(value == last(value),
+                        round(index), 
+                        NA_real_)) %>%
+  mutate(Source.label = ifelse(year(Date) == 2013 & month(Date) == 3,
+                               as.character(Source),
+                               NA_character_)) %>%
+{
+  grplot(., aes(x = Date, y = index, color = Source)) + 
+    geom_line() + 
+    scale_color_manual(values = gpal(2, dark = TRUE)) + 
+    theme(axis.title.x = element_blank()) + 
+    geom_text(aes(label = index.label), 
+              hjust = -0.2,
+              fontface = "bold",
+              size = 23/(14/5)) +
+    geom_text(aes(label = Source.label), 
+              vjust = 1.5,
+              hjust = 0,
+              fontface = "bold",
+              size = 23/(14/5)) + 
+    geom_point(data = filter(ungroup(.), Date == max(Date) | Date == min(Date)),
+             size = 5) + 
+    annotate("text", x = as.Date("2008-12-01"), y = 100, hjust = 1.2, label = "100",
+             fontface = "bold", size = 23/(14/5)) + 
+    theme(axis.text.y = element_blank(), axis.text.y = element_blank(),
+          panel.grid.major = element_blank(),
+          axis.ticks.y = element_blank(), axis.line.y = element_blank()) + 
+    scale_x_date(expand = c(0.1, 0.1))
+}
+@
+\vfill
+\phantom{.}
+\eject
+\includegraphics[width=\columnwidth]{atlas/index-charts-1}
+\newpage
+\section{Annotating lines}
+<<slopes>>=
+read.table(text="X.Values	Sydney	Melbourne	Brisbane	Adelaide	Perth	Hobart
+0	-1385.805387	-2205.485387	-804.7053865	-500.4753865	-600.6853865	-2318.005387
+5	-1065.799914	-1865.530663	-479.686753	-180.5188794	-280.7863761	-1977.94236
+10	-745.7999135	-1525.530663	-154.686753	139.4811206	39.21362391	-1637.94236
+15	-425.7999135	-1185.530663	170.313247	459.4811206	359.2136239	-1297.94236
+20	-105.7999135	-845.5306631	495.313247	779.4811206	679.2136239	-957.9423597
+25	214.2000865	-505.5306631	820.313247	1099.481121	999.2136239	-617.9423597
+30	534.2000865	-165.5306631	1145.313247	1419.481121	1319.213624	-277.9423597
+35	854.2000865	174.4693369	1470.313247	1739.481121	1639.213624	62.05764033
+40	1174.200086	514.4693369	1795.313247	2059.481121	1959.213624	402.0576403
+45	1494.200086	854.4693369	2120.313247	2379.481121	2279.213624	742.0576403
+50	1814.200086	1194.469337	2445.313247	2699.481121	2599.213624	1082.05764
+21.65312365	0	-733.118255	602.7662841	885.2810341	785.0135374	-845.5299516
+32.43427446	689.9936518	0	1303.541087	1575.274686	1475.007189	-112.4116966
+12.3797962	-593.4929567	-1363.704521	0	291.7880774	191.5205808	-1476.116218
+7.820607491	-885.2810341	-1673.729354	-296.3472661	0	-100.2674966	-1786.14105
+9.387287126	-785.0135374	-1567.195139	-194.5130898	100.2674966	0	-1679.606835
+34.08738764	795.7928956	112.4116966	1410.993444	1681.07393	1580.806433	0
+", header=TRUE) %>%
+  tidyr::gather(City, value, -X.Values) %>%
+  filter(City %in% c("Adelaide", "Perth", "Brisbane", "Sydney", "Melbourne")) %>%
+  mutate(City = factor(City, levels = c("Adelaide", "Perth", "Brisbane", "Sydney", "Melbourne"))) %>%
+  group_by(City) %>%
+  mutate(City.label = ifelse(X.Values == max(X.Values),
+                             as.character(City),
+                             NA_character_)) %>%
+  ungroup %>%
+  {
+    grplot(., aes(x = X.Values, y = value, color = City)) + 
+      # coloured lines (i.e. data) should go *over* y = 0, so
+      # plot y = 0 first
+      geom_hline(yintercept = 0, size = 2, color = "black") + 
+      geom_line() + 
+      geom_text(aes(label = City.label,
+                    # avoid collisions
+                    vjust = ifelse(City == "Adelaide",
+                                   -0.2, ifelse(City == "Brisbane",
+                                             1,
+                                             0.5))),
+                nudge_x = 0.5,
+                hjust = 0,
+                fontface = "bold",
+                size = 23/(14/5)) + 
+      scale_x_continuous(expand = c(0,0), limits = c(0, max(.$X.Values) * 1.2),
+                         breaks = 10*(0:5)) + 
+      theme(axis.title.x = element_blank()) + 
+      annotate("point",
+               # ordinarily this would be present in the data
+               x = c(7.8275, 9.5, 12.5, 21.75, 32.5),
+               y = 0, 
+               shape = 21, # hollow point
+               stroke = 3,
+               fill = "white",
+               color = gpal(5),
+               size = 4) + 
+      annotate("text",
+               x = c(7.55, 9.65, 12.875, 21.875, 32.75),
+               vjust = 0.5,
+               fontface = "bold",
+               size = 20/(14/5),
+               color = gpal(5),
+               y = c(250, 400, -250, -250, -250),
+               label = percent(c(8, 9, 12, 22, 32)/100))
+  }
+@
+\vfill
+\phantom{.}
+\eject
+\includegraphics[width=\columnwidth]{atlas/slopes-1}
 \end{document}
