@@ -4,6 +4,10 @@
 \usepackage{graphicx}
 %\setmainfont{Arial}
 
+%Makes tildes nicer
+\usepackage{xspace}
+\newcommand{\mytilde}{\lower.80ex\hbox{\char`\~}\xspace}
+
 
 \makeatletter
 
@@ -17,6 +21,7 @@
 
 
 \begin{document}
+\raggedbottom
 <<knitrOpts>>=
 library(knitr)
 knitr::opts_chunk$set(fig.show = "hide",
@@ -24,9 +29,17 @@ knitr::opts_chunk$set(fig.show = "hide",
                       fig.width = 11, 
                       fig.height = 7,
                       tidy = FALSE,
-                      #message = FALSE,
+                      message = FALSE,
                       out.width = "11in",
                       out.height = "7in")
+
+# Nicer tildes
+hook_source = knit_hooks$get('source')
+knit_hooks$set(source = function(x, options) {
+  txt = hook_source(x, options)
+  # extend the default source hook
+  gsub('~', '\\\\mytilde', txt)
+})
 @
 
 <<packages>>=
@@ -41,6 +54,7 @@ library(magrittr)
 library(lubridate)
 library(readxl)
 library(data.table)
+library(grid)
 @
 
 <<helper-functions>>=
@@ -780,6 +794,8 @@ read_csv("./Supp-Data/line-chart-1.csv") %>%
   tidyr::gather(Country, value, -Month) %>%
   mutate(Date = as.Date(paste0("01-", Month), "%d-%b-%y")) %>%
   group_by(Country) %>%
+  #
+  # Place the labels at maxima
   mutate(text.label = ifelse(value == max(value), as.character(Country), NA_character_)) %>%
   grplot(aes(x = Date, y = value, color = Country)) + 
   geom_line() +
@@ -1043,6 +1059,7 @@ read.table(text="Year	Germany	China	Italy	US	Australia	Rest of World
 \phantom{.}
 \eject
 \includegraphics[width=\columnwidth]{atlas/stacked-area1-1}
+\newpage
 \section{Another area chart}
 <<include=FALSE>>=
 read.table(text="Date	Mining	Non-mining
@@ -1170,7 +1187,9 @@ set.seed(1)
 grattan_waterfall(values = round(rnorm(5), 1),
                   labels = c("First label", "Second label", "Third", "Fourth", "Fifth"))
 @
-
+\eject
+\includegraphics[width=\columnwidth]{atlas/plain-waterfall-1}
+\newpage
 \subsection{With totals}
 <<waterfall-with-totals>>=
 set.seed(1)
@@ -1179,6 +1198,9 @@ grattan_waterfall(values = round(rnorm(5), 1),
                   #
                   calc_total = TRUE)
 @
+\eject
+\includegraphics[width=\columnwidth]{atlas/waterfall-with-totals-1}
+\newpage
 \section{Bubble chart}
 <<include=FALSE>>=
 read.table(text="Country	GDP/capita ($US)	Life expectancy	Population	Region	Continent	Asia	Europe	Africa	Oceania	South America	North America
@@ -1448,6 +1470,43 @@ temp.data %>%
     scale_size_area(max_size = 48)
 }
 @
+\eject
+\includegraphics[width=\columnwidth]{atlas/bubble-chart-1}
+\newpage
+\section{Facetted area chart}
+<<facetted-area-chart>>=
+read_excel("./Supp-Data/Income-1976--2011-by-age_group.xlsx", sheet = 2) %>%
+  select(Age_range, Incomes, Year) %>%
+  filter(complete.cases(.)) %>%
+  group_by(Age_range) %>%
+  arrange(Year) %>%
+  mutate(goes_up = last(Incomes) > first(Incomes)) %>%
+  mutate(text.label = ifelse(Age_range == "25-34" & (Year == 1976 | Year == 2011),
+                             Year,
+                             NA_character_)) %>%
+  grplot(aes(x = Year, y = Incomes)) + 
+  geom_area(fill = col.1, alpha = 0.8) + 
+  geom_line(aes(color = goes_up)) + 
+  scale_color_manual(values = gpal(2, TRUE)) + 
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.x = element_blank()) + 
+  geom_text(aes(label = text.label, 
+                hjust = ifelse(Year == 1976, 0.1, 0.9)), 
+            size = 20/(14/5),
+            nudge_y = 1000,
+            vjust = 0) + 
+  facet_grid(~Age_range, switch = "x") + 
+  theme(strip.background = element_blank(),
+        strip.text = element_text(size = 23)) + 
+  scale_y_continuous(limits = c(0,50e3), expand = c(0,0), label = grattan_dollar)
+
+# Absolute positioning
+grid.text("Income decline", x = 0.15, y = 0.9, gp = gpar(col = gpal(2, TRUE)[1], font = 2, fontsize = 22), hjust = 0)
+grid.text("Income increase", x = 0.65, y = 0.9, gp = gpar(col = gpal(2, TRUE)[2], font = 2, fontsize = 22), hjust = 0)
+@
+\eject
+\includegraphics[width=\columnwidth]{atlas/facetted-area-chart-1}
 
 
 
