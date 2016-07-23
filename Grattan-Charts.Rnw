@@ -57,6 +57,17 @@ library(data.table)
 library(grid)
 @
 
+<<CHART-GEOM, echo=FALSE>>=
+grplot <- function(...) {
+    grattan::grplot(...) + 
+    theme_hugh(base_size = 20) + 
+    theme(axis.title.x = element_text(margin = ggplot2::margin(10, 0, 10, 0, "pt")), 
+          plot.margin = ggplot2::margin(11, 11, 11, 11, "pt"))
+}
+
+ggplot2::update_geom_defaults("text", new = list(size = 20/(14/5)))
+@
+
 <<helper-functions>>=
 .simpleCap <- function(x) {
     s <- strsplit(x, " ")[[1]]
@@ -344,9 +355,9 @@ check.names = FALSE) %>%
   # Alternatively, we can use geom_text to place text
   geom_text(aes(x = text.x, y = text.y, 
                 label = text.label, color = factor(Year)), 
-            size = 23/(14/5), 
             hjust = 1,
-            fontface = "bold")
+            fontface = "bold", 
+            na.rm = TRUE)
 @
 \vfil
 \phantom{.}
@@ -486,7 +497,7 @@ Bachelor degree	66.85055608	18.26301611	5.480946866	2.121800946	7.283680001
 \eject
 \includegraphics[width=\columnwidth]{atlas/stack-fill-bar-manual-colors-1}
 \newpage
-\section{Labels so to appear as outside the chart (clip $x$-axis)}
+\section{Labels so as to appear outside the chart (clip $x$-axis)}
 
 <<stacked-bar-chart2, warning=FALSE>>=
 read.table(text="Column1	NSW	VIC	QLD	SA	WA	Other
@@ -499,10 +510,11 @@ read.table(text="Column1	NSW	VIC	QLD	SA	WA	Other
 2013	33,998	33,332	71,197	29,187	21,600	11093
 2014	36,377	39,305	56,952	14,932	23,249	6353
 ", header = TRUE) %>%
-  tidyr::gather(State, value, -Column1) %>% 
+  tidyr::gather(State, value, -Column1, factor_key = TRUE) %>% 
   mutate(Year = Column1,
          State = factor(State, 
-                        labels = c("NSW", "Vic.", "Qld", "SA", "WA", "Other"))) %>%
+                        labels = c("NSW", "Vic.", "Qld", "SA", "WA", "Other"), 
+                        ordered = TRUE)) %>%
   mutate(value = as.numeric(gsub(",", "", value))) %>% 
   # text
   mutate(text.x = max(as.numeric(factor(Year))) + 0.65,
@@ -540,6 +552,46 @@ read.table(text="Column1	NSW	VIC	QLD	SA	WA	Other
 \eject
 \includegraphics[width=\columnwidth]{atlas/stacked-bar-chart2-1}
 \newpage
+\section{Grattan function for stacked bar chart with right labels}
+
+<<stacked-bar-chart-with-right-labels>>=
+read.table(text="Column1	NSW	VIC	QLD	SA	WA	Other
+2007	779	828	475	1,037	262	99
+2008	2,890	2,036	3,087	3,456	2,068	527
+2009	14,008	8,429	18,283	8,569	11,157	2470
+2010	69,988	35,676	48,697	16,705	22,293	4849
+2011	80,272	60,214	95,303	63,553	51,667	9736
+2012	53,961	66,204	130,252	41,851	42,653	8399
+2013	33,998	33,332	71,197	29,187	21,600	11093
+2014	36,377	39,305	56,952	14,932	23,249	6353
+", header = TRUE) %>%
+  mutate_each(funs(as.character), -Column1) %>%  # avoids type.convert warning
+  tidyr::gather(State, value, -Column1, factor_key = TRUE) %>% 
+  mutate(Year = Column1,
+         State = factor(State, 
+                        labels = c("NSW", "Vic.", "Qld", "SA", "WA", "Other"))) %>%
+  mutate(y = as.numeric(gsub(",", "", value)), 
+         x = factor(Year, ordered = TRUE), 
+         fill = factor(State, ordered = TRUE)) %>% 
+  stacked_bar_with_right_labels(
+    barwidth = 0.75,
+    theme.args = list(text = element_text(size = 20), 
+                      axis.title.x = element_blank(), 
+                      axis.title.y = element_text(angle = 90, margin = margin(11, 11, 11, 11, "pt"))), 
+    scale_y_args = list(name = "Value (000s)", 
+                        label = function(x) x / 1000, 
+                        expand = c(0,0)))
+
+@
+\vfill
+\phantom{.}
+\eject
+\null\vfill
+\includegraphics[width=\columnwidth]{atlas/stacked-bar-chart-with-right-labels-1}
+\newpage
+
+
+
 \subsection{}
 <<alternative-dodge-chart>>=
 read.table(text="Column1	1986	1991	1996	2001	2006	2011
@@ -556,7 +608,8 @@ read.table(text="Column1	1986	1991	1996	2001	2006	2011
   tidyr::gather(Year, value, -Column1) %>%
   grplot(aes(x = Column1, y = value, fill = Year)) + 
   geom_bar(stat = "identity", position = "dodge", width = 0.9) +
-  theme(legend.position = c(0.9, 0.8),
+  theme(legend.position = c(0.9, 0.9),
+        legend.justification = c(1, 0.9),
         # x-axis clear by context
         axis.title.x = element_blank()) + 
   scale_y_continuous(expand = c(0,0), limits = c(0, 50e3), label = comma)
@@ -593,10 +646,10 @@ Class size	0.21
   mutate(Intervention = factor(Intervention, levels = rev(.$Intervention))) %>%
   
   # note `Effect size`  is now `Effect.size`
-  grplot(aes(x = Intervention, y = Effect.size)) + 
+  grplot(aes(x = Intervention, y = Effect.size), 
+         # reverse puts the palette in the opposite direction
+         reverse = TRUE) + 
   geom_bar(stat = "identity", width = 0.9, aes(fill = is_Proposed_intervention)) +
-  # dark palette
-  scale_fill_manual(values = rev(gpal(2, dark = TRUE))) + 
   scale_y_continuous("Effect size",
                      expand = c(0,0), 
                      limits = c(0,1.5), 
@@ -608,9 +661,9 @@ Class size	0.21
   annotate("text", x = c(7, 3), y = 1.5, 
            label = c("Proposed\ninterventions",
                      "Other\nfactors"),
-           color = gpal(2,T),
+           color = gpal(2),
            hjust = 1, 
-           size = 23/(14/5),
+           size = 20/(14/5),
            fontface = "bold",
            lineheight = 0.8) + 
   geom_hline(yintercept = 0.4, size = 2) + 
@@ -1038,7 +1091,7 @@ read.table(text="Year	Germany	China	Italy	US	Australia	Rest of World
 2012	32.643	7	16.139	7.271	2.407	36.61577044
 2013	35.948	18.3	17.6	12.022	3.255	52.51189856
 ", header = TRUE, sep = "\t") %>%
-  tidyr::gather(Country, value, -Year) %>%
+  tidyr::gather(Country, value, -Year, factor_key = TRUE) %>%
   grplot(aes(x = Year, y = value, fill = Country)) + 
   geom_area() + 
   scale_fill_manual(values = c(gpal(6)[1:4], "black", gpal(6)[5])) + 
@@ -1185,7 +1238,10 @@ Green costs	5.790123293
 <<plain-waterfall>>=
 set.seed(1)
 grattan_waterfall(values = round(rnorm(5), 1),
-                  labels = c("First label", "Second label", "Third", "Fourth", "Fifth"))
+                  labels = c("First label", "Second label", "Third", "Fourth", "Fifth"), 
+                  print_plot = FALSE) + 
+  theme_hugh(base_size = 20) + 
+  theme(axis.title.x = element_blank())
 @
 \eject
 \includegraphics[width=\columnwidth]{atlas/plain-waterfall-1}
@@ -1474,7 +1530,7 @@ temp.data %>%
 \includegraphics[width=\columnwidth]{atlas/bubble-chart-1}
 \newpage
 \section{Facetted area chart}
-<<facetted-area-chart>>=
+<<facetted-area-chart, eval=FALSE>>=
 read_excel("./Supp-Data/Income-1976--2011-by-age_group.xlsx", sheet = 2) %>%
   select(Age_range, Incomes, Year) %>%
   filter(complete.cases(.)) %>%
